@@ -1,3 +1,14 @@
+NOTE: CHANGES MADE
+
+First install the requirements.txt: `pip install -r requirements.txt`
+
+Create a .env with the path to your finding_configs.so. Variable is called NATIVE_SO_PATH. To get this file, use `make variants` on the better-testing branch of the team43 project. 
+
+Next, to make sure it executes, change the resolver in ~/.config/pooltool/physics/resolver.yaml from frictional_inelastic to frictional_mathavan.
+
+END CHANGES
+
+
 <img src="https://github.com/ekiefl/pooltool/blob/main/pooltool/logo/logo.png" width="600" />
 
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)

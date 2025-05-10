@@ -1,6 +1,5 @@
 from typing import Optional, Tuple
 
-
 import ctypes
 
 import attrs
@@ -21,6 +20,9 @@ from pooltool.physics.resolve.models import BallBallModel
 INF = float("inf")
 Z_LOC = array([0, 0, 1], dtype=np.float64)
 
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 def load_native(so_path):
     """Load a shared lib and return a collide_native(...) callable."""
@@ -123,7 +125,7 @@ def collide_balls(
     #     r_i, v_i, w_i, r_j, v_j, w_j, R, M, u_s1, u_s2, u_b, e_b, deltaP, N
     # )
     
-    collide_native = load_native("/Users/jupieper/uni/asl/project/team43/build/base.so")
+    collide_native = load_native(os.environ.get("NATIVE_SO_PATH"))
     v_i1, w_i1, v_j1, w_j1 = collide_native(
         r_i, v_i, w_i, r_j, v_j, w_j, R, M, u_s1, u_s2, u_b, e_b, deltaP, N
     )
