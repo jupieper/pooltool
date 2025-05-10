@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Protocol, Tuple
+import click
 
 import pooltool.constants as const
 import pooltool.ptmath as ptmath
@@ -52,7 +53,16 @@ class CoreBallBallCollision(ABC):
 
         ball1, ball2 = self.make_kiss(ball1, ball2)
 
-        return self.solve(ball1, ball2)
+        click.echo(f"\n========== START ==========")
+        click.echo(f"\nUsing  {self.__class__.__name__}, {ball1.id}, {ball2.id}")
+        click.echo(f"Params: {ball1.params}\n{ball2.params}")
+        click.echo(f"Initial state:\n{ball1.state.rvw}\n{ball2.state.rvw}")
+
+        res_ball = self.solve(ball1, ball2)
+
+        click.echo(f"Results:\n{res_ball[0].state.rvw}\n{res_ball[1].state.rvw}")
+        click.echo(f"\n=========== END ===========\n")
+        return res_ball
 
     @abstractmethod
     def solve(self, ball1: Ball, ball2: Ball) -> Tuple[Ball, Ball]:

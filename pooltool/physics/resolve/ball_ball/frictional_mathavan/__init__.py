@@ -1,5 +1,8 @@
 from typing import Optional, Tuple
 
+
+import ctypes
+
 import attrs
 import numpy as np
 from numba import jit
@@ -17,6 +20,61 @@ from pooltool.physics.resolve.models import BallBallModel
 
 INF = float("inf")
 Z_LOC = array([0, 0, 1], dtype=np.float64)
+
+
+def load_native(so_path):
+    """Load a shared lib and return a collide_native(...) callable."""
+    lib = ctypes.CDLL(so_path)
+    lib.collide_balls.argtypes = [
+        ctypes.POINTER(ctypes.c_double),  # r_i
+        ctypes.POINTER(ctypes.c_double),  # v_i
+        ctypes.POINTER(ctypes.c_double),  # w_i
+        ctypes.POINTER(ctypes.c_double),  # r_j
+        ctypes.POINTER(ctypes.c_double),  # v_j
+        ctypes.POINTER(ctypes.c_double),  # w_j
+        ctypes.c_double,  # R
+        ctypes.c_double,  # M
+        ctypes.c_double,  # u_s1
+        ctypes.c_double,  # u_s2
+        ctypes.c_double,  # u_b
+        ctypes.c_double,  # e_b
+        ctypes.c_double,  # deltaP
+        ctypes.c_int,  # N
+        ctypes.POINTER(ctypes.c_double),  # new_v_i
+        ctypes.POINTER(ctypes.c_double),  # new_w_i
+        ctypes.POINTER(ctypes.c_double),  # new_v_j
+        ctypes.POINTER(ctypes.c_double),  # new_w_j
+    ]
+    lib.collide_balls.restype = None
+
+    def collide_native(r_i, v_i, w_i, r_j, v_j, w_j, R, M,
+                       u_s1=0.21, u_s2=0.21, u_b=0.05, e_b=0.89,
+                       deltaP=None, N=1000):
+        new_vi = np.zeros(3, dtype=np.float64)
+        new_wi = np.zeros(3, dtype=np.float64)
+        new_vj = np.zeros(3, dtype=np.float64)
+        new_wj = np.zeros(3, dtype=np.float64)
+
+        lib.collide_balls(
+            r_i.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            v_i.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            w_i.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            r_j.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            v_j.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            w_j.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            ctypes.c_double(R), ctypes.c_double(M),
+            ctypes.c_double(u_s1), ctypes.c_double(u_s2),
+            ctypes.c_double(u_b), ctypes.c_double(e_b),
+            ctypes.c_double(-1.0 if deltaP is None else deltaP), # TODO default value ok?
+            ctypes.c_int(0 if N is None else N), # TODO default value ok?
+            new_vi.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            new_wi.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            new_vj.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+            new_wj.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        )
+        return new_vi, new_wi, new_vj, new_wj
+
+    return collide_native
 
 
 def collide_balls(
@@ -61,9 +119,15 @@ def collide_balls(
     r_i, v_i, w_i = rvw1.copy()
     r_j, v_j, w_j = rvw2.copy()
 
-    v_i1, w_i1, v_j1, w_j1 = _collide_balls(
+    # v_i1, w_i1, v_j1, w_j1 = _collide_balls(
+    #     r_i, v_i, w_i, r_j, v_j, w_j, R, M, u_s1, u_s2, u_b, e_b, deltaP, N
+    # )
+    
+    collide_native = load_native("/Users/jupieper/uni/asl/project/team43/build/base.so")
+    v_i1, w_i1, v_j1, w_j1 = collide_native(
         r_i, v_i, w_i, r_j, v_j, w_j, R, M, u_s1, u_s2, u_b, e_b, deltaP, N
     )
+
 
     rvw1[1, :2] = v_i1[:2]
     rvw2[1, :2] = v_j1[:2]
@@ -260,6 +324,8 @@ class FrictionalMathavan(CoreBallBallCollision):
         velocities and angular velocities are transformed back into the global coordinate
         frame and returned.
         """
+
+        # click.echo(f"\nInitial state:\n{ball1.state.rvw}\n{ball2.state.rvw}")
         rvw1, rvw2 = collide_balls(
             ball1.state.rvw.copy(),
             ball2.state.rvw.copy(),
@@ -275,5 +341,8 @@ class FrictionalMathavan(CoreBallBallCollision):
 
         ball1.state = BallState(rvw1, const.sliding)
         ball2.state = BallState(rvw2, const.sliding)
+
+
+        # click.echo(f"\nResults:\n{ball1.state.rvw}\n{ball2.state.rvw}")
 
         return ball1, ball2
